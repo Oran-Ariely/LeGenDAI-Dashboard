@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/utils/supabase/client';
 import styles from './LeadsTable.module.css';
 import { Search, Filter, MoreHorizontal, MessageCircle } from 'lucide-react';
 import LeadModal from './LeadModal';
@@ -24,6 +24,8 @@ export default function LeadsTable() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  
+  const supabase = createClient();
 
   useEffect(() => {
     fetchLeads();

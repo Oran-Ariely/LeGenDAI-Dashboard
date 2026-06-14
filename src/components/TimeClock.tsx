@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { Play, Square, Loader2 } from 'lucide-react';
+import { createClient } from '@/utils/supabase/client';
+import { Play, Square, Coffee, CheckSquare, Plus, Loader2 } from 'lucide-react';
 
 type TimeLog = {
   id: string;
@@ -16,6 +16,8 @@ export default function TimeClock() {
   const [lastAction, setLastAction] = useState<'in' | 'out' | null>(null);
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<TimeLog[]>([]);
+  
+  const supabase = createClient();
 
   useEffect(() => {
     fetchLogs();

@@ -1,8 +1,13 @@
+"use client";
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Users, Clock, MessageSquare, CreditCard, PieChart } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
 export default function Sidebar() {
+  const pathname = usePathname();
+  
   return (
     <aside className={styles.sidebar}>
       <div className={styles.logoContainer}>
@@ -11,19 +16,19 @@ export default function Sidebar() {
       </div>
 
       <nav className={styles.nav}>
-        <Link href="/" className={`${styles.navItem} ${styles.active}`}>
+        <Link href="/" className={`${styles.navItem} ${pathname === '/' ? styles.active : ''}`}>
           <LayoutDashboard size={20} />
           <span>דאשבורד ראשי</span>
         </Link>
-        <Link href="/leads" className={styles.navItem}>
+        <Link href="/leads" className={`${styles.navItem} ${pathname === '/leads' ? styles.active : ''}`}>
           <Users size={20} />
           <span>ניהול לידים</span>
         </Link>
-        <Link href="/time" className={styles.navItem}>
+        <Link href="/time" className={`${styles.navItem} ${pathname === '/time' ? styles.active : ''}`}>
           <Clock size={20} />
           <span>שעון נוכחות</span>
         </Link>
-        <Link href="/feedback" className={styles.navItem}>
+        <Link href="/feedback" className={`${styles.navItem} ${pathname === '/feedback' ? styles.active : ''}`}>
           <MessageSquare size={20} />
           <span>בקשות פיתוח</span>
         </Link>
