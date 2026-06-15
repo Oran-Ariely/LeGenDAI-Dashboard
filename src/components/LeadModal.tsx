@@ -35,7 +35,7 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
   const [sending, setSending] = useState(false);
   const [chatError, setChatError] = useState('');
   
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (lead.phone) {
@@ -44,7 +44,9 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
   }, [lead.phone]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatBoxRef.current) {
+      chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+    }
   }, [messages]);
 
   const fetchChatHistory = async () => {
@@ -192,7 +194,7 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
               <h3 className={styles.sectionTitle}>
                 <MessageCircle size={18} /> התכתבות WhatsApp
               </h3>
-              <div className={styles.chatBox}>
+              <div className={styles.chatBox} ref={chatBoxRef}>
                 {loadingChat ? (
                   <div className={styles.emptyData}>טוען היסטוריית שיחות...</div>
                 ) : chatError ? (
@@ -213,7 +215,6 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
                     );
                   })
                 )}
-                <div ref={chatEndRef} />
               </div>
               
               <div className={styles.chatInputWrapper}>
