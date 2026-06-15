@@ -1,12 +1,21 @@
 "use client";
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Clock, MessageSquare, CreditCard, PieChart } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { LayoutDashboard, Users, Clock, MessageSquare, CreditCard, PieChart, LogOut } from 'lucide-react';
+import { createClient } from '@/utils/supabase/client';
 import styles from './Sidebar.module.css';
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const supabase = createClient();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  };
   
   return (
     <aside className={styles.sidebar}>
@@ -48,12 +57,15 @@ export default function Sidebar() {
       
       <div className={styles.footer}>
         <div className={styles.userProfile}>
-          <div className={styles.avatar}></div>
+          <div className={styles.avatar}>N</div>
           <div className={styles.userInfo}>
             <div className={styles.userName}>צוות נגה</div>
             <div className={styles.userRole}>מנהל מערכת</div>
           </div>
         </div>
+        <button className={styles.logoutBtn} onClick={handleLogout} title="התנתק">
+          <LogOut size={20} />
+        </button>
       </div>
     </aside>
   );
