@@ -4,7 +4,7 @@ import LeadDetails from './LeadDetails';
 import { User, Phone, Mail, FileText, Bot } from 'lucide-react';
 
 export default async function LeadPage({ params }: { params: { id: string } }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
