@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { User, Phone, Mail, FileText, Bot } from 'lucide-react';
+import { User, Phone, Mail, FileText, Bot, MessageCircle } from 'lucide-react';
 import styles from '@/components/LeadModal.module.css';
 
 export default function LeadDetails({ initialLead }: { initialLead: any }) {
@@ -94,6 +94,26 @@ export default function LeadDetails({ initialLead }: { initialLead: any }) {
               <div className={styles.aiContent}>
                 <p><strong>ניתוח הליד:</strong> הלקוח מגלה עניין גבוה על סמך התשובות שמסר בטופס. הוא ציין מטרה ברורה שמערכת השעות שלנו יכולה לפתור.</p>
                 <p><strong>פעולה מומלצת:</strong> כדאי לשלוח הודעת ווטסאפ שמתייחסת ישירות לנקודת הכאב שציין.</p>
+              </div>
+            </div>
+          </section>
+
+          <section className={styles.section} style={{ marginTop: '2rem' }}>
+            <h3 className={styles.sectionTitle}>
+              <MessageCircle size={18} /> היסטוריית שיחות WhatsApp (הדגמה)
+            </h3>
+            <div className={styles.chatBox}>
+              <div className={`${styles.chatMessage} ${styles.agent}`}>
+                היי {lead.name.split(' ')[0] || 'לקוח'} 👋 ראינו שהשארת פרטים לגבי התוכנית שלנו. נשמח לשמוע קצת יותר על המטרה שלך כדי שנוכל לבדוק התאמה. מתי נוח לך שנדבר?
+                <span className={styles.chatTime}>10:45</span>
+              </div>
+              <div className={`${styles.chatMessage} ${styles.user}`}>
+                היי, תודה על הפניה. מעדיף לדבר מחר בבוקר סביב 10:00 אם אפשר.
+                <span className={styles.chatTime}>11:02</span>
+              </div>
+              <div className={`${styles.chatMessage} ${styles.agent}`}>
+                מעולה, קבעתי לנו למחר ב-10:00. אם יש לך שאלות ספציפיות שתרצה שנעבור עליהן, מוזמן לכתוב כאן ונגיע מוכנים. המשך יום מקסים!
+                <span className={styles.chatTime}>11:05</span>
               </div>
             </div>
           </section>
