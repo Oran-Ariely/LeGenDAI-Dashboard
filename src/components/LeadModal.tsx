@@ -304,9 +304,9 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
               {loadingChat ? (
                 <div className={styles.emptyData}>טוען היסטוריית שיחות...</div>
               ) : chatError ? (
-                <div className={styles.emptyData}>{chatError}</div>
+                <div className={styles.emptyData}>שגיאה בטעינת היסטוריה: {chatError}</div>
               ) : messages.length === 0 ? (
-                <div className={styles.emptyData}>אין שיחות קודמות להצגה.</div>
+                <div className={styles.emptyData}>אין היסטוריה</div>
               ) : (
                 <div className={styles.chatBox} ref={chatBoxRef}>
                   {messages.map((msg, idx) => {
