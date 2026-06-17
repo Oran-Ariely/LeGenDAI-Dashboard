@@ -1,5 +1,6 @@
-import { X, User, Phone, Mail, FileText, Bot, MessageCircle, Send } from 'lucide-react';
+import { X, User, Phone, Mail, FileText, Bot, MessageCircle, Send, DollarSign } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { createClient } from '@/utils/supabase/client';
 import styles from './LeadModal.module.css';
 
 type Lead = {
@@ -10,8 +11,10 @@ type Lead = {
   email: string | null;
   notes: string | null;
   source: string | null;
+  client_id: string;
   form_data: any;
   created_at: string;
+  deal_value?: number;
 };
 
 type Props = {
@@ -26,14 +29,36 @@ type WhatsAppMessage = {
   textMessage: string;
   senderId: string;
   timestamp: number;
+  extendedTextMessage?: { text: string };
 };
 
+const statusOptions = [
+  'ליד חדש',
+  'נשלחה הודעה',
+  'ענה',
+  'נקבעה פגישה',
+  'לא רלוונטי',
+  'עסקה נסגרה'
+];
+
 export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
+  const supabase = createClient();
   const [messages, setMessages] = useState<WhatsAppMessage[]>([]);
   const [loadingChat, setLoadingChat] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [chatError, setChatError] = useState('');
+  
+  // AI State
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [isRelevant, setIsRelevant] = useState<boolean | null>(null);
+  const [sendingFeedback, setSendingFeedback] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState(false);
+  
+  const [dealValue, setDealValue] = useState(lead.deal_value || 0);
+  const [savingDeal, setSavingDeal] = useState(false);
   
   const chatBoxRef = useRef<HTMLDivElement>(null);
 
@@ -69,6 +94,23 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
     }
   };
 
+  const handleUpdateDealValue = async () => {
+    setSavingDeal(true);
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ deal_value: dealValue })
+        .eq('id', lead.id);
+      
+      if (error) throw error;
+      // You could show a success toast here
+    } catch (err) {
+      console.error('Error saving deal value:', err);
+    } finally {
+      setSavingDeal(false);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
     
@@ -99,6 +141,85 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
       alert(err.message || 'Error sending message');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    setAnalyzing(true);
+    setAiAnalysis(null);
+    setFeedbackSent(false);
+    setIsRelevant(null);
+    setFeedbackText('');
+    
+    try {
+      const res = await fetch('/api/ai/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead, messages })
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to analyze');
+      }
+
+      if (!res.body) throw new Error('No response body');
+      
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+      let streamedText = '';
+
+      // Initialize with empty text
+      setAiAnalysis({ rawText: '' });
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        const chunkValue = decoder.decode(value, { stream: true });
+        streamedText += chunkValue;
+        
+        setAiAnalysis({ rawText: streamedText });
+      }
+
+      // After streaming finishes, try to extract the draft message if it exists
+      const draftMatch = streamedText.match(/טיוטת וואטסאפ:\*?\*?\n([\s\S]*)/i) || streamedText.match(/טיוטה:\*?\*?\n([\s\S]*)/i);
+      if (draftMatch && draftMatch[1]) {
+        setNewMessage(draftMatch[1].trim());
+      }
+      
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handleSendFeedback = async () => {
+    if (isRelevant === null || !feedbackText.trim()) {
+      alert('יש לבחור האם רלוונטי ולהזין משוב');
+      return;
+    }
+    setSendingFeedback(true);
+    try {
+      const res = await fetch('/api/ai/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          lead, 
+          previousAnalysis: aiAnalysis?.analysis,
+          previousDraft: aiAnalysis?.whatsapp_draft,
+          isRelevant,
+          feedbackText
+        })
+      });
+      if (!res.ok) throw new Error('Failed to send feedback');
+      setFeedbackSent(true);
+      setTimeout(() => setFeedbackSent(false), 3000);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSendingFeedback(false);
     }
   };
 
@@ -149,17 +270,16 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={`glass-panel ${styles.modal}`} onClick={e => e.stopPropagation()}>
-        
         <div className={styles.header}>
           <div className={styles.headerInfo}>
             <div className={styles.avatar}>
-              <User size={32} color="white" />
+              <User size={28} color="white" />
             </div>
             <div>
               <h2 className={styles.title}>{lead.name || 'ללא שם'}</h2>
               <div className={styles.subtitle}>
-                <span>נקלט ב: {new Date(lead.created_at).toLocaleString('he-IL')}</span>
-                {lead.source && <span className={styles.badge}>{lead.source}</span>}
+                <span>{lead.phone}</span>
+                <span className={styles.badge}>{lead.source || 'לא ידוע'}</span>
               </div>
             </div>
           </div>
@@ -176,47 +296,36 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
               </h3>
               {renderFormData()}
             </section>
-
-            <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>
-                <Bot size={18} /> תובנות והמלצות AI
-              </h3>
-              <div className={styles.aiBox}>
-                <div className={styles.aiIndicator}></div>
-                <div className={styles.aiContent}>
-                  <p><strong>ניתוח הליד:</strong> הלקוח מגלה עניין גבוה על סמך התשובות שמסר בטופס. הוא ציין מטרה ברורה שמערכת השעות שלנו יכולה לפתור.</p>
-                  <p><strong>פעולה מומלצת:</strong> כדאי לשלוח הודעת ווטסאפ שמתייחסת ישירות לנקודת הכאב שציין.</p>
-                </div>
-              </div>
-            </section>
-
             <section className={styles.section} style={{ marginTop: '2rem' }}>
               <h3 className={styles.sectionTitle}>
-                <MessageCircle size={18} /> התכתבות WhatsApp
+                <MessageCircle size={18} /> התכתבות (WhatsApp)
               </h3>
-              <div className={styles.chatBox} ref={chatBoxRef}>
-                {loadingChat ? (
-                  <div className={styles.emptyData}>טוען היסטוריית שיחות...</div>
-                ) : chatError ? (
-                  <div className={styles.emptyData}>{chatError}</div>
-                ) : messages.length === 0 ? (
-                  <div className={styles.emptyData}>אין שיחות קודמות להצגה.</div>
-                ) : (
-                  messages.map((msg, idx) => {
+              
+              {loadingChat ? (
+                <div className={styles.emptyData}>טוען היסטוריית שיחות...</div>
+              ) : chatError ? (
+                <div className={styles.emptyData}>{chatError}</div>
+              ) : messages.length === 0 ? (
+                <div className={styles.emptyData}>אין שיחות קודמות להצגה.</div>
+              ) : (
+                <div className={styles.chatBox} ref={chatBoxRef}>
+                  {messages.map((msg, idx) => {
                     if (msg.typeMessage !== 'textMessage' && msg.typeMessage !== 'extendedTextMessage') return null;
                     const isAgent = msg.senderId === 'me' || String(msg.senderId).startsWith(process.env.NEXT_PUBLIC_GREENAPI_ID_INSTANCE || 'none');
                     return (
                       <div key={idx} className={`${styles.chatMessage} ${isAgent ? styles.agent : styles.user}`}>
-                        {msg.textMessage}
+                        <div className={styles.chatText} style={{ whiteSpace: 'pre-wrap' }}>
+                          {msg.typeMessage === 'extendedTextMessage' ? msg.extendedTextMessage?.text : msg.textMessage}
+                        </div>
                         <span className={styles.chatTime}>
                           {new Date(msg.timestamp * 1000).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                     );
-                  })
-                )}
-              </div>
-              
+                  })}
+                </div>
+              )}
+
               <div className={styles.chatInputWrapper}>
                 <input 
                   type="text" 
@@ -239,57 +348,123 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
               </div>
             </section>
           </div>
-
           <div className={styles.sideCol}>
-            <div className={styles.card}>
-              <h4 className={styles.cardTitle}>פרטי יצירת קשר</h4>
-              <div className={styles.contactItem}>
-                <Phone size={16} />
-                {lead.phone ? (
-                  <a href={`https://wa.me/${lead.phone}`} target="_blank" rel="noopener noreferrer" dir="ltr">{lead.phone}</a>
-                ) : (
-                  <span>אין מספר טלפון</span>
-                )}
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>
+                <User size={18} /> פרטי לקוח
+              </h3>
+              <div className={styles.detailRow}>
+                <Phone size={16} className={styles.detailIcon} />
+                <span>{lead.phone}</span>
               </div>
               {lead.email && (
-                <div className={styles.contactItem}>
-                  <Mail size={16} />
+                <div className={styles.detailRow}>
+                  <Mail size={16} className={styles.detailIcon} />
                   <span>{lead.email}</span>
                 </div>
               )}
-            </div>
-
-            <div className={styles.card}>
-              <h4 className={styles.cardTitle}>עדכון סטטוס</h4>
-              <div className={styles.statusSelect}>
-                {statusOptions.map(opt => (
-                  <button 
-                    key={opt}
-                    onClick={() => onUpdateStatus(opt)}
-                    className={`${styles.statusBtn} ${lead.status === opt ? styles.activeStatus : ''}`}
-                    style={{ 
-                      borderColor: lead.status === opt ? getStatusColor(opt) : 'transparent',
-                      color: lead.status === opt ? getStatusColor(opt) : 'inherit',
-                      background: lead.status === opt ? `${getStatusColor(opt)}15` : 'rgba(255,255,255,0.05)'
-                    }}
-                  >
-                    {opt}
-                  </button>
-                ))}
+            </section>
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>עדכון סטטוס</h3>
+              <div className={styles.statusDropdownContainer}>
+                <select 
+                  className={styles.statusDropdown}
+                  value={lead.status}
+                  onChange={(e) => onUpdateStatus(e.target.value)}
+                  style={{ borderLeftColor: getStatusColor(lead.status) }}
+                >
+                  {statusOptions.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
               </div>
-            </div>
-
-            <div className={styles.card}>
-              <h4 className={styles.cardTitle}>הערות פנימיות</h4>
-              <textarea 
-                className={`input-field ${styles.notesBox}`} 
-                placeholder="הכנס הערות נוספות לליד..."
-                defaultValue={lead.notes || ''}
-              />
-              <button className={`btn btn-primary ${styles.saveBtn}`}>שמור הערות</button>
-            </div>
+            </section>
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>
+                <DollarSign size={18} /> שווי עסקה (₪)
+              </h3>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <input 
+                  type="number" 
+                  className="input-field" 
+                  style={{ width: '100%', background: 'rgba(0,0,0,0.2)' }}
+                  value={dealValue}
+                  onChange={e => setDealValue(Number(e.target.value))}
+                  onBlur={handleUpdateDealValue}
+                />
+                {savingDeal && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>שומר...</span>}
+              </div>
+            </section>
           </div>
         </div>
+
+        {/* AI Section Moved Outside Grid for Full Width */}
+        <div className={styles.fullWidthSection}>
+            <section className={styles.section}>
+              <div className={styles.sectionHeaderRow}>
+                <h3 className={styles.sectionTitle}>
+                  <Bot size={18} /> תובנות והמלצות AI
+                </h3>
+                <button 
+                  className={`btn ${styles.analyzeBtn}`} 
+                  onClick={handleAnalyze} 
+                  disabled={analyzing || loadingChat}
+                >
+                  {analyzing ? 'מנתח...' : 'נתח ליד עכשיו'}
+                </button>
+              </div>
+              
+              {aiAnalysis ? (
+                <div className={styles.aiBox}>
+                  <div className={styles.aiIndicator}></div>
+                  <div className={styles.aiContent}>
+                    <div className={styles.streamedText} style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+                      {aiAnalysis.rawText}
+                    </div>
+                  </div>
+                  
+                  {!analyzing && (
+                    <div className={styles.feedbackSection}>
+                      <h4>האם התשובה הייתה טובה? עזור לסוכן להשתפר</h4>
+                      <div className={styles.feedbackControls}>
+                        <button 
+                          className={`${styles.feedbackThumb} ${isRelevant === true ? styles.activeYes : ''}`}
+                          onClick={() => setIsRelevant(true)}
+                        >
+                          👍 רלוונטי
+                        </button>
+                        <button 
+                          className={`${styles.feedbackThumb} ${isRelevant === false ? styles.activeNo : ''}`}
+                          onClick={() => setIsRelevant(false)}
+                        >
+                          👎 לא רלוונטי
+                        </button>
+                      </div>
+                      <textarea 
+                        className={`input-field ${styles.feedbackInput}`}
+                        placeholder="הזן הערות למודל כדי שילמד להבא... (למשל: 'הודעת הטיוטה הייתה רשמית מדי')"
+                        value={feedbackText}
+                        onChange={e => setFeedbackText(e.target.value)}
+                      />
+                      <button 
+                        className={`btn btn-primary ${styles.feedbackSubmit}`}
+                        onClick={handleSendFeedback}
+                        disabled={sendingFeedback || feedbackSent}
+                      >
+                        {sendingFeedback ? 'שולח...' : feedbackSent ? 'הזיכרון עודכן ✓' : 'עדכן זיכרון לטווח ארוך'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className={styles.emptyData}>
+                  {analyzing ? 'טוען ניתוח וזיכרון לטווח ארוך...' : 'לחץ על "נתח ליד עכשיו" לקבלת המלצות מבוססות שיחה וטופס.'}
+                </div>
+              )}
+            </section>
+        </div>
+
+
       </div>
     </div>
   );

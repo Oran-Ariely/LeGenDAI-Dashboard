@@ -7,8 +7,8 @@ export default function LoginPage({
   searchParams: { error?: string }
 }) {
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', width: '100vw', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
-      <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '2rem', alignItems: 'center' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', width: '100%', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', padding: '1rem' }}>
+      <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '2rem', alignItems: 'center' }}>
         
         <div style={{ textAlign: 'center' }}>
           <div style={{
