@@ -25,7 +25,6 @@ export default function LeadsTable() {
   const [errorMsg, setErrorMsg] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [timeFilter, setTimeFilter] = useState('all');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   
@@ -110,23 +109,7 @@ export default function LeadsTable() {
     
     const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
     
-    let matchesTime = true;
-    if (timeFilter !== 'all') {
-      const leadDate = new Date(lead.created_at);
-      const now = new Date();
-      const diffTime = Math.abs(now.getTime() - leadDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      if (timeFilter === 'today') {
-        matchesTime = leadDate.toDateString() === now.toDateString();
-      } else if (timeFilter === '7days') {
-        matchesTime = diffDays <= 7;
-      } else if (timeFilter === '30days') {
-        matchesTime = diffDays <= 30;
-      }
-    }
-    
-    return matchesSearch && matchesStatus && matchesTime;
+    return matchesSearch && matchesStatus;
   });
 
   const scrollToTop = () => {
@@ -196,20 +179,6 @@ export default function LeadsTable() {
             <option value="ענה">ענה</option>
             <option value="נקבעה פגישה">נקבעה פגישה</option>
             <option value="לא רלוונטי">לא רלוונטי</option>
-          </select>
-        </div>
-
-        <div className={styles.filterBox}>
-          <Filter size={18} className={styles.filterIcon} />
-          <select 
-            className={`input-field ${styles.selectInput}`}
-            value={timeFilter}
-            onChange={(e) => setTimeFilter(e.target.value)}
-          >
-            <option value="all">כל הזמנים</option>
-            <option value="today">היום</option>
-            <option value="7days">7 ימים אחרונים</option>
-            <option value="30days">30 ימים אחרונים</option>
           </select>
         </div>
       </div>

@@ -1,15 +1,31 @@
 import styles from './page.module.css';
 import { Users, TrendingUp, Calendar, AlertCircle, DollarSign } from 'lucide-react';
 import { createClient } from '@/utils/supabase/server';
+import TimeFilter from '@/components/TimeFilter';
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
+  const { days } = await searchParams;
   const supabase = await createClient();
   
   // Fetch real data from Supabase
-  const { data: leads, error } = await supabase
-    .from('leads')
-    .select('*')
-    .order('created_at', { ascending: false });
+  let query = supabase.from('leads').select('*');
+  
+  if (days && days !== 'all') {
+    const now = new Date();
+    if (days === 'today') {
+      // Set to start of today in local time/UTC
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      query = query.gte('created_at', todayStart);
+    } else if (days === '7') {
+      const pastStr = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      query = query.gte('created_at', pastStr);
+    } else if (days === '30') {
+      const pastStr = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      query = query.gte('created_at', pastStr);
+    }
+  }
+
+  const { data: leads, error } = await query.order('created_at', { ascending: false });
 
   const totalLeads = leads?.length || 0;
   
@@ -32,6 +48,9 @@ export default async function Home() {
         <div>
           <h1 className={styles.title}>ברוכים הבאים, צוות נגה 👋</h1>
           <p className={styles.subtitle}>הנה סקירה של מה שקורה היום בעסק שלך.</p>
+        </div>
+        <div style={{ alignSelf: 'center' }}>
+          <TimeFilter />
         </div>
       </header>
 
