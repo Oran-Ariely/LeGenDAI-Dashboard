@@ -91,8 +91,8 @@ export async function GET(request: Request) {
   }
 }
 
+
 export async function POST(request: Request) {
-  return NextResponse.json({ error: 'WhatsApp sending is temporarily disabled due to account restriction (Anti-Spam).' }, { status: 403 });
   try {
     const { phone, message } = await request.json();
 
@@ -100,62 +100,65 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Phone and message are required' }, { status: 400 });
     }
 
-    const cleanPhone = phone.replace(/\D/g, '');
-    
-    // Meta API Credentials
-    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
-    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-
-    if (!accessToken || !phoneNumberId) {
-      return NextResponse.json({ error: 'WhatsApp Cloud API credentials not configured' }, { status: 500 });
+    // Normalize to Israeli international format (972XXXXXXXXX)
+    const digits = phone.replace(/\D/g, '');
+    let intlPhone: string;
+    if (digits.startsWith('972')) {
+      intlPhone = digits;
+    } else if (digits.startsWith('0')) {
+      intlPhone = '972' + digits.slice(1);
+    } else {
+      intlPhone = '972' + digits;
     }
 
-    // 1. Send via Meta API
-    const response = await fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}/messages`, {
+    // GreenAPI credentials (Noga's instance)
+    const instanceId = process.env.GREENAPI_ID_INSTANCE || '7107631046';
+    const token = process.env.GREENAPI_API_TOKEN_INSTANCE;
+
+    if (!token) {
+      return NextResponse.json({ error: 'GreenAPI credentials not configured' }, { status: 500 });
+    }
+
+    // Send via GreenAPI
+    const greenApiUrl = `https://api.green-api.com/waInstance${instanceId}/sendMessage/${token}`;
+    const greenRes = await fetch(greenApiUrl, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: cleanPhone,
-        type: 'text',
-        text: { preview_url: false, body: message }
+        chatId: `${intlPhone}@c.us`,
+        message: message
       })
     });
 
-    const data = await response.json();
+    const greenData = await greenRes.json();
 
-    if (!response.ok) {
-      console.error('Meta API Error:', data);
-      throw new Error(`WhatsApp API Error: ${data.error?.message || response.statusText}`);
+    if (!greenRes.ok || greenData.error) {
+      console.error('GreenAPI Error:', greenData);
+      throw new Error(greenData.message || `GreenAPI Error: ${greenRes.status}`);
     }
 
-    // Extract the message ID provided by Meta
-    const messageId = data.messages?.[0]?.id;
+    const messageId = greenData.idMessage || `local_${Date.now()}`;
 
-    // 2. Save the outbound message to Supabase
+    // Save outbound message to Supabase
     const { error: dbError } = await supabase
       .from('whatsapp_messages')
       .insert([{
-        lead_phone: cleanPhone,
-        message_id: messageId || `local_${Date.now()}`,
+        lead_phone: intlPhone,
+        message_id: messageId,
         direction: 'outbound',
         type: 'text',
-        content: { text: { body: message } },
+        content: { body: message },
         status: 'sent'
       }]);
 
     if (dbError) {
       console.error('Error saving outbound message to Supabase:', dbError);
-      // We don't throw here because the message was sent successfully
     }
 
-    return NextResponse.json({ success: true, messageId });
+    return NextResponse.json({ success: true, messageId, phone: intlPhone });
   } catch (error: any) {
     console.error('Error sending message:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
