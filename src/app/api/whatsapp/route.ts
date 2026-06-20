@@ -31,13 +31,23 @@ export async function GET(request: Request) {
     // Format the response to match the frontend expectations
     // The frontend LeadModal currently expects an array of messages where:
     // { textMessage: string, senderId: string, timestamp: number }
-    const formattedMessages = data.map(msg => ({
-      textMessage: msg.content?.text?.body || msg.content?.body || JSON.stringify(msg.content),
-      senderId: msg.direction === 'outbound' ? 'me' : cleanPhone,
-      timestamp: new Date(msg.created_at).getTime() / 1000,
-      direction: msg.direction,
-      status: msg.status
-    }));
+    const formattedMessages = data.map(msg => {
+      // Support both content formats: {body: "..."} and {text: {body: "..."}}
+      const bodyText = msg.content?.body 
+        || msg.content?.text?.body 
+        || msg.content?.caption
+        || (typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content));
+      
+      return {
+        idMessage: msg.message_id || msg.id,
+        typeMessage: 'textMessage', // Always set so the frontend renders it
+        textMessage: bodyText,
+        senderId: msg.direction === 'outbound' ? 'me' : cleanPhone,
+        timestamp: new Date(msg.created_at).getTime() / 1000,
+        direction: msg.direction,
+        status: msg.status
+      };
+    });
 
     return NextResponse.json(formattedMessages);
   } catch (error: any) {

@@ -29,6 +29,8 @@ type WhatsAppMessage = {
   textMessage: string;
   senderId: string;
   timestamp: number;
+  direction?: 'inbound' | 'outbound';
+  status?: string;
   extendedTextMessage?: { text: string };
 };
 
@@ -83,9 +85,9 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
         throw new Error('Failed to fetch history');
       }
       const data = await res.json();
-      // GreenAPI returns newest first, so we reverse it for display
+      // API returns messages in chronological order (ascending) — no need to reverse
       if (Array.isArray(data)) {
-        setMessages(data.reverse());
+        setMessages(data);
       }
     } catch (err: any) {
       setChatError(err.message || 'Error loading chat');
@@ -310,12 +312,14 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
               ) : (
                 <div className={styles.chatBox} ref={chatBoxRef}>
                   {messages.map((msg, idx) => {
-                    if (msg.typeMessage !== 'textMessage' && msg.typeMessage !== 'extendedTextMessage') return null;
-                    const isAgent = msg.senderId === 'me' || String(msg.senderId).startsWith(process.env.NEXT_PUBLIC_GREENAPI_ID_INSTANCE || 'none');
+                    // Skip non-text messages (e.g. reactions, images without caption)
+                    const msgText = msg.textMessage || msg.extendedTextMessage?.text;
+                    if (!msgText) return null;
+                    const isAgent = msg.direction === 'outbound' || msg.senderId === 'me' || String(msg.senderId).startsWith(process.env.NEXT_PUBLIC_GREENAPI_ID_INSTANCE || 'none');
                     return (
                       <div key={idx} className={`${styles.chatMessage} ${isAgent ? styles.agent : styles.user}`}>
                         <div className={styles.chatText} style={{ whiteSpace: 'pre-wrap' }}>
-                          {msg.typeMessage === 'extendedTextMessage' ? msg.extendedTextMessage?.text : msg.textMessage}
+                          {msgText}
                         </div>
                         <span className={styles.chatTime}>
                           {new Date(msg.timestamp * 1000).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
