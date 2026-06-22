@@ -318,9 +318,15 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
                       const msgText = msg.textMessage || msg.extendedTextMessage?.text;
                       if (!msgText) return null;
                       
-                      const msgDate = new Date(msg.timestamp * 1000);
-                      // Format date for separator
-                      const currentDateStr = msgDate.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' });
+                      const timestamp = Number(msg.timestamp);
+                      const msgDate = isNaN(timestamp) || !timestamp ? null : new Date(timestamp * 1000);
+                      
+                      // Format date for separator safely
+                      let currentDateStr = 'תאריך לא ידוע';
+                      if (msgDate && !isNaN(msgDate.getTime())) {
+                        currentDateStr = msgDate.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' });
+                      }
+                      
                       const showSeparator = currentDateStr !== lastDateStr;
                       lastDateStr = currentDateStr;
 
@@ -338,7 +344,7 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
                               {msgText}
                             </div>
                             <span className={styles.chatTime}>
-                              {msgDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                              {msgDate && !isNaN(msgDate.getTime()) ? msgDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : ''}
                             </span>
                           </div>
                         </React.Fragment>

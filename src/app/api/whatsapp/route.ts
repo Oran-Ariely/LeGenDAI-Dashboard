@@ -68,7 +68,9 @@ export async function GET(request: Request) {
         typeMessage: 'textMessage', // Always set so the frontend renders it
         textMessage: bodyText,
         senderId: msg.direction === 'outbound' ? 'me' : cleanPhone,
-        timestamp: new Date(msg.created_at).getTime() / 1000,
+        timestamp: msg.created_at && !isNaN(new Date(msg.created_at).getTime())
+          ? new Date(msg.created_at).getTime() / 1000
+          : Date.now() / 1000,
         direction: msg.direction,
         status: msg.status
       };
