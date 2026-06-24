@@ -31,7 +31,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   
   // Example metrics:
   const scheduledMeetings = leads?.filter(l => l.status === 'נקבעה פגישה').length || 0;
-  const requireAttention = leads?.filter(l => l.status === 'ליד חדש' || l.status === 'ענה').length || 0;
+  const requireAttention = leads?.filter(l => !l.status || l.status === '' || l.status === 'ליד חדש' || l.status === 'ענה' || l.status === 'התקבלה הודעה' || l.status === 'מחכה לתשובה').length || 0;
 
   // Calculate total revenue from closed deals or deals with value
   const totalRevenue = leads?.reduce((sum, l) => {

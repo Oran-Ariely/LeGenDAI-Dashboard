@@ -24,7 +24,7 @@ export default function LeadsTable() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('attention');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   
@@ -107,7 +107,10 @@ export default function LeadsTable() {
     
     const matchesSearch = dName.includes(s) || lName.includes(s) || email.includes(s) || phone.includes(s);
     
-    const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || 
+      (statusFilter === 'attention' ? 
+        (!lead.status || lead.status === '' || lead.status === 'ליד חדש' || lead.status === 'ענה' || lead.status === 'התקבלה הודעה' || lead.status === 'מחכה לתשובה') : 
+        (statusFilter === 'empty' ? (!lead.status || lead.status === '') : lead.status === statusFilter));
     
     return matchesSearch && matchesStatus;
   });
@@ -117,11 +120,16 @@ export default function LeadsTable() {
   };
 
   const getStatusColor = (status: string) => {
+    if (!status || status === '') return 'var(--info)';
     switch(status) {
       case 'ליד חדש': return 'var(--info)';
+      case 'מחכה לתשובה': return 'var(--warning)';
       case 'נשלחה הודעה': return 'var(--accent-primary)';
+      case 'התקבלה הודעה': return 'var(--warning)';
       case 'ענה': return 'var(--warning)';
       case 'נקבעה פגישה': return 'var(--success)';
+      case 'נרשם לכנס': return 'var(--success)';
+      case 'נרשם לתוכנית הכשרה': return 'var(--success)';
       case 'לא רלוונטי': return 'var(--text-secondary)';
       default: return 'var(--text-secondary)';
     }
@@ -174,10 +182,16 @@ export default function LeadsTable() {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="all">כל הסטטוסים</option>
+            <option value="attention">דורשים טיפול ⚠️</option>
+            <option value="empty">ללא סטטוס (ריק)</option>
             <option value="ליד חדש">ליד חדש</option>
+            <option value="התקבלה הודעה">התקבלה הודעה</option>
+            <option value="מחכה לתשובה">מחכה לתשובה</option>
             <option value="נשלחה הודעה">נשלחה הודעה</option>
             <option value="ענה">ענה</option>
             <option value="נקבעה פגישה">נקבעה פגישה</option>
+            <option value="נרשם לכנס">נרשם לכנס</option>
+            <option value="נרשם לתוכנית הכשרה">נרשם לתוכנית הכשרה</option>
             <option value="לא רלוונטי">לא רלוונטי</option>
           </select>
         </div>

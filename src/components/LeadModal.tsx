@@ -226,17 +226,22 @@ export default function LeadModal({ lead, onClose, onUpdateStatus }: Props) {
   };
 
   const getStatusColor = (status: string) => {
+    if (!status || status === '') return 'var(--info)';
     switch(status) {
       case 'ליד חדש': return 'var(--info)';
+      case 'מחכה לתשובה': return 'var(--warning)';
       case 'נשלחה הודעה': return 'var(--accent-primary)';
+      case 'התקבלה הודעה': return 'var(--warning)';
       case 'ענה': return 'var(--warning)';
       case 'נקבעה פגישה': return 'var(--success)';
+      case 'נרשם לכנס': return 'var(--success)';
+      case 'נרשם לתוכנית הכשרה': return 'var(--success)';
       case 'לא רלוונטי': return 'var(--text-secondary)';
       default: return 'var(--text-secondary)';
     }
   };
 
-  const statusOptions = ['ליד חדש', 'נשלחה הודעה', 'ענה', 'נקבעה פגישה', 'לא רלוונטי'];
+  const statusOptions = ['ליד חדש', 'התקבלה הודעה', 'מחכה לתשובה', 'נשלחה הודעה', 'ענה', 'נקבעה פגישה', 'נרשם לכנס', 'נרשם לתוכנית הכשרה', 'לא רלוונטי'];
 
   const renderFormData = () => {
     if (!lead.form_data) return <div className={styles.emptyData}>לא קיים מידע מטופס הרשמה</div>;
